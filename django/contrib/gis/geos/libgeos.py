@@ -12,12 +12,14 @@ import sys
 from ctypes import c_char_p, Structure, CDLL, CFUNCTYPE, POINTER
 from ctypes.util import find_library
 from django.contrib.gis.geos.error import GEOSException
+from django.core.exceptions import ImproperlyConfigured
 
 # Custom library path set?
 try:
     from django.conf import settings
     lib_path = settings.GEOS_LIBRARY_PATH
-except (AttributeError, EnvironmentError, ImportError):
+except (AttributeError, EnvironmentError,
+        ImportError, ImproperlyConfigured):
     lib_path = None
 
 # Setting the appropriate names for the GEOS-C library.
