@@ -3,7 +3,8 @@ from django.db.backends.postgresql_psycopg2.creation import DatabaseCreation
 
 class PostGISCreation(DatabaseCreation):
     geom_index_type = 'GIST'
-    geom_index_opts = 'GIST_GEOMETRY_OPS'
+    geom_index_ops = 'GIST_GEOMETRY_OPS'
+    geom_index_ops_nd = 'GIST_GEOMETRY_OPS_ND'
 
     def sql_indexes_for_field(self, model, f, style):
         "Return any spatial index creation SQL for the field."
@@ -16,8 +17,9 @@ class PostGISCreation(DatabaseCreation):
             qn = self.connection.ops.quote_name
             db_table = model._meta.db_table
 
-            if f.geography:
-                # Geogrophy columns are created normally.
+            if f.geography or self.connection.ops.geometry:
+                # Geography and Geometry (PostGIS 2.0+) columns are
+                # created normally.
                 pass
             else:
                 # Geometry columns are created by `AddGeometryColumn`
@@ -42,10 +44,13 @@ class PostGISCreation(DatabaseCreation):
             if f.spatial_index:
                 # Spatial indexes created the same way for both Geometry and
                 # Geography columns
-                if f.geography:
+                if f.geography or self.connection.ops.geometry:
                     index_opts = ''
+                    if self.connection.ops.geometry and f.dim >= 3:
+                        # Preferred index options for 3D+ geometries.
+                        index_opts = ' ' + style.SQL_KEYWORD(self.geom_index_ops_nd)
                 else:
-                    index_opts = ' ' + style.SQL_KEYWORD(self.geom_index_opts)
+                    index_opts = ' ' + style.SQL_KEYWORD(self.geom_index_ops)
                 output.append(style.SQL_KEYWORD('CREATE INDEX ') +
                               style.SQL_TABLE(qn('%s_%s_id' % (db_table, f.column))) +
                               style.SQL_KEYWORD(' ON ') +
